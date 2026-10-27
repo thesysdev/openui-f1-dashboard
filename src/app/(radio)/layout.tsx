@@ -104,7 +104,7 @@ function RadioFrame({ children }: { children: ReactNode }) {
 
   return (
     // The carbon sidebar floats on the left; the chat page fills the rest.
-    <div style={{ position: "relative", height: "100dvh", paddingLeft: collapsed ? 52 : 280, background: "#FFFFFF", transition: "padding-left 180ms cubic-bezier(0.2, 0.8, 0.2, 1)" }}>
+    <div style={{ position: "relative", height: "var(--app-height, 100dvh)", paddingLeft: collapsed ? 52 : 280, background: "#FFFFFF", transition: "padding-left 180ms cubic-bezier(0.2, 0.8, 0.2, 1)" }}>
       <Sidebar
         floating
         threads={sidebarThreads}
