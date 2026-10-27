@@ -21,7 +21,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
       <body>
-        <OpenUISiteChrome>{children}</OpenUISiteChrome>
+        <OpenUISiteChrome title="F1 Dashboard">{children}</OpenUISiteChrome>
         <Analytics />
       </body>
     </html>
