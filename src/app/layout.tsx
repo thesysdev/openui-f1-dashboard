@@ -2,6 +2,7 @@ import "@openuidev/react-ui/styles/index.css";
 import type { Metadata } from "next";
 import "./styles.css";
 import { Analytics } from "./analytics";
+import { OpenUISiteChrome } from "../components/openui-site-header";
 
 const description =
   "Explore data through conversation with streaming charts, comparisons, and clear answers.";
@@ -20,7 +21,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
       <body>
-        {children}
+        <OpenUISiteChrome>{children}</OpenUISiteChrome>
         <Analytics />
       </body>
     </html>
