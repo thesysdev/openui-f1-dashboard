@@ -129,7 +129,7 @@ export function ChatShell({ children, empty, page, input, threadKey }: ChatShell
   }, []);
   return (
     // Only the thread scrolls, and only when it overflows; the page itself never does.
-    <div style={{ display: "flex", flexDirection: "column", height: "100dvh", overflow: "hidden", background: WHITE, color: CARBON }}>
+    <div style={{ display: "flex", flexDirection: "column", height: "calc(100dvh - var(--hosted-header-height, 0px))", overflow: "hidden", background: WHITE, color: CARBON }}>
       <main style={{ position: "relative", flex: 1, minHeight: 0 }}>
         {/* Thread: bottom padding keeps the last message clear of the floating input. */}
         <div
