@@ -1,7 +1,6 @@
 import "@openuidev/react-ui/styles/index.css";
 import type { Metadata } from "next";
 import "./styles.css";
-import { Analytics } from "./analytics";
 
 const description =
   "Explore data through conversation with streaming charts, comparisons, and clear answers.";
@@ -21,7 +20,6 @@ export default function Layout({ children }: { children: React.ReactNode }) {
     <html lang="en">
       <body>
         {children}
-        <Analytics />
       </body>
     </html>
   );
