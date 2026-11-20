@@ -6,10 +6,13 @@ import { invalidateOpenf1Token, openf1Token } from "./openf1-auth";
 // OpenF1 client: one throttled request queue per process and a disk cache under data/openf1.
 // Finished sessions never change, so their responses are cached forever; calendar lists get a
 // short TTL. When OpenF1 is unreachable or rate limited, a stale cached copy is served instead,
-// which is what lets `npm run snapshot:f1` make the tools work offline.
+// which is what lets `npm run snapshot:f1` make the tools work offline. A committed snapshot of
+// what the dashboards read (src/assets/openf1, `npm run snapshot:dashboards`) backs that cache, so
+// fresh server instances can serve them while OpenF1 is closed during live sessions.
 
 export const OPENF1_BASE = "https://api.openf1.org/v1";
-const CACHE_DIR = resolve(process.cwd(), "data/openf1");
+const SEED_DIR = resolve(process.cwd(), "src/assets/openf1");
+const CACHE_DIR = process.env.OPENF1_WRITE_SEED ? SEED_DIR : resolve(process.cwd(), "data/openf1");
 
 // The free tier allows 3 requests per second and 30 per minute. A sliding window keeps us under
 // both while still letting a single question's few requests go out in a burst.
@@ -53,10 +56,10 @@ export function openf1Url(endpoint: string, params: Params = {}) {
   return `${OPENF1_BASE}/${endpoint}${query ? `?${query}` : ""}`;
 }
 
-function cachePath(url: string) {
+function cachePath(url: string, dir = CACHE_DIR) {
   const endpoint = new URL(url).pathname.split("/").pop() ?? "misc";
   const hash = createHash("sha1").update(url).digest("hex").slice(0, 16);
-  return resolve(CACHE_DIR, endpoint, `${hash}.json`);
+  return resolve(dir, endpoint, `${hash}.json`);
 }
 
 type CacheEntry = { url: string; fetchedAt: number; final: boolean; data: unknown[] };
@@ -83,6 +86,8 @@ export interface FetchOptions {
 }
 
 export class OpenF1Error extends Error {}
+/** OpenF1 closes its free API, past sessions included, while a session is live. */
+export class OpenF1LiveSessionError extends OpenF1Error {}
 
 /** GET an OpenF1 endpoint. A 404 "No results found" is an empty list, not an error. */
 export async function openf1<T = Record<string, unknown>>(
@@ -93,7 +98,7 @@ export async function openf1<T = Record<string, unknown>>(
   const url = openf1Url(endpoint, params);
   const path = cachePath(url);
   const ttlMs = (options.ttl ?? 600) * 1000;
-  const cached = memory.get(url) ?? (await readCache(path));
+  const cached = memory.get(url) ?? (await readCache(path)) ?? (await readCache(cachePath(url, SEED_DIR)));
   if (cached) memory.set(url, cached);
   const fresh =
     cached && (cached.final || options.offline || Date.now() - cached.fetchedAt < ttlMs);
@@ -157,6 +162,10 @@ async function fetchWithRetry(url: string, signal?: AbortSignal): Promise<unknow
       renewedToken = true;
       continue;
     }
+    if (response.status === 401 && /live f1 session/i.test(await response.text()))
+      throw new OpenF1LiveSessionError(
+        "F1 data is paused while a session is live: OpenF1 opens again after it ends. Try again then.",
+      );
     if (response.status === 429 || response.status >= 500) {
       if (attempt >= 4) throw new OpenF1Error(`OpenF1 HTTP ${response.status}. Try again shortly.`);
       const retryAfter = Number(response.headers.get("retry-after"));

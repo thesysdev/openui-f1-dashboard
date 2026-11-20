@@ -1,3 +1,4 @@
+import { OpenF1LiveSessionError } from "../../../../lib/f1/openf1";
 import { runF1Tool } from "../../../../lib/f1/tools";
 import { hasAllowedOrigin } from "../../../../lib/same-origin";
 
@@ -24,6 +25,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ too
     return Response.json(await runF1Tool(tool, args, { signal: request.signal }));
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
+    if (error instanceof OpenF1LiveSessionError) return Response.json({ error: message }, { status: 503 });
     const status = message.startsWith("Unknown F1 tool") ? 404 : error instanceof RangeError ? 400 : 502;
     return Response.json({ error: message }, { status });
   }

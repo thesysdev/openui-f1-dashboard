@@ -49,11 +49,13 @@ Each URL is its own page under `src/app/(radio)/`. The layout holds what stays m
 
 The tools (`src/lib/f1/tools`) call OpenF1 through one rate-limited client with a disk cache under `data/openf1`. Finished sessions are cached forever, and a stale copy is served if OpenF1 is down. With `OPENF1_USERNAME` and `OPENF1_PASSWORD` set, the client signs in to [OpenF1](https://openf1.org/auth.html) and sends a Bearer token: the server fetches it on first use, shares it across requests, renews it five minutes before its one-hour expiry, and fetches a new one if OpenF1 rejects it with a 401. Without them it uses the free tier. Raise `OPENF1_PER_MINUTE` to match your account's limit. `npm run snapshot:f1` fills that cache ahead of time; `npm run snapshot:f1 -- --year 2025 --light` adds last season's races (results, standings and stints only).
 
+OpenF1's free API is closed while an F1 session is live, past sessions included, and the tools then answer with a 503 saying so. What the dashboard pages read is committed under `src/assets/openf1` and backs the cache, so the dashboards still fill then. Refresh it after a race weekend, outside a live session, with `npm run snapshot:dashboards`.
+
 Driver, team colour and circuit data for the visuals is committed under `src/assets/f1`. Refresh it for a new season with `npx tsx scripts/snapshot-f1-assets.ts`.
 
 ## Deploying
 
-`next.config.ts` bundles `data/**` into the API routes, so run `npm run snapshot:f1` before building. Hosts with a read-only filesystem keep new OpenF1 responses in memory only.
+`next.config.ts` bundles `data/**` and `src/assets/openf1/**` into the API routes, so run `npm run snapshot:f1` before building. Hosts with a read-only filesystem keep new OpenF1 responses in memory only.
 
 ## Visitors and storage
 
