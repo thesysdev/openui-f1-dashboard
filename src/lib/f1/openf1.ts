@@ -83,6 +83,8 @@ export interface FetchOptions {
 }
 
 export class OpenF1Error extends Error {}
+/** OpenF1 closes its free API, past sessions included, while a session is live. */
+export class OpenF1LiveSessionError extends OpenF1Error {}
 
 /** GET an OpenF1 endpoint. A 404 "No results found" is an empty list, not an error. */
 export async function openf1<T = Record<string, unknown>>(
@@ -157,6 +159,8 @@ async function fetchWithRetry(url: string, signal?: AbortSignal): Promise<unknow
       renewedToken = true;
       continue;
     }
+    if (response.status === 401 && /live f1 session/i.test(await response.text()))
+      throw new OpenF1LiveSessionError("OpenF1 is unavailable at the moment");
     if (response.status === 429 || response.status >= 500) {
       if (attempt >= 4) throw new OpenF1Error(`OpenF1 HTTP ${response.status}. Try again shortly.`);
       const retryAfter = Number(response.headers.get("retry-after"));
