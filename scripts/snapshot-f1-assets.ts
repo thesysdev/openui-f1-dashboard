@@ -5,11 +5,6 @@
 import { writeFile } from "node:fs/promises";
 import { openf1AuthHeaders } from "../src/lib/f1/openf1-auth";
 
-// Next.js loads .env.local for the app; scripts load it here so OpenF1 credentials apply too.
-try {
-  process.loadEnvFile(".env.local");
-} catch {}
-
 const OUT = new URL("../src/assets/f1/", import.meta.url);
 const CIRCUITS = "https://raw.githubusercontent.com/bacinger/f1-circuits/master";
 const SEASON = 2026;

@@ -10,11 +10,6 @@ import { SNAPSHOT_ENDPOINTS } from "../src/lib/f1/data";
 import { openf1 } from "../src/lib/f1/openf1";
 import { season } from "../src/lib/f1/resolve";
 
-// Next.js loads .env.local for the app; scripts load it here so OpenF1 credentials apply too.
-try {
-  process.loadEnvFile(".env.local");
-} catch {}
-
 const args = process.argv.slice(2);
 const year = Number(args[args.indexOf("--year") + 1]) || 2026;
 const light = args.includes("--light");
