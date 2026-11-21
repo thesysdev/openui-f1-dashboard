@@ -3,13 +3,15 @@
 // - Drivers and team colours: OpenF1 (https://openf1.org), latest session.
 // - Calendar: OpenF1 meetings. Circuit outlines: github.com/bacinger/f1-circuits (MIT).
 import { writeFile } from "node:fs/promises";
+import { openf1AuthHeaders } from "../src/lib/f1/openf1-auth";
 
 const OUT = new URL("../src/assets/f1/", import.meta.url);
 const CIRCUITS = "https://raw.githubusercontent.com/bacinger/f1-circuits/master";
 const SEASON = 2026;
 
 const getJson = async (url: string) => {
-  const res = await fetch(url);
+  const headers = url.startsWith("https://api.openf1.org/") ? await openf1AuthHeaders() : {};
+  const res = await fetch(url, { headers });
   if (!res.ok) throw new Error(`${url}: ${res.status}`);
   return res.json();
 };
