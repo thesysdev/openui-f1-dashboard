@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
+import { invalidateOpenf1Token, openf1Token } from "./openf1-auth";
 
 // OpenF1 client: one throttled request queue per process and a disk cache under data/openf1.
 // Finished sessions never change, so their responses are cached forever; calendar lists get a
@@ -127,14 +128,21 @@ export async function openf1<T = Record<string, unknown>>(
 
 async function fetchWithRetry(url: string, signal?: AbortSignal): Promise<unknown[]> {
   let backoff = 4000;
+  let renewedToken = false;
   for (let attempt = 0; ; attempt++) {
+    let token: string | null;
+    try {
+      token = await openf1Token();
+    } catch (error) {
+      throw new OpenF1Error(String(error instanceof Error ? error.message : error));
+    }
     await takeSlot();
     signal?.throwIfAborted();
     let response: Response;
     try {
       response = await fetch(url, {
         signal: signal ? AbortSignal.any([signal, AbortSignal.timeout(45000)]) : AbortSignal.timeout(45000),
-        headers: { accept: "application/json" },
+        headers: { accept: "application/json", ...(token && { authorization: `Bearer ${token}` }) },
       });
     } catch (error) {
       if (attempt >= 2 || signal?.aborted) throw new OpenF1Error(`OpenF1 unreachable: ${String(error)}`);
@@ -143,6 +151,12 @@ async function fetchWithRetry(url: string, signal?: AbortSignal): Promise<unknow
       continue;
     }
     if (response.status === 404) return [];
+    // An expired or revoked token: fetch a new one and retry once.
+    if (response.status === 401 && token && !renewedToken) {
+      invalidateOpenf1Token(token);
+      renewedToken = true;
+      continue;
+    }
     if (response.status === 429 || response.status >= 500) {
       if (attempt >= 4) throw new OpenF1Error(`OpenF1 HTTP ${response.status}. Try again shortly.`);
       const retryAfter = Number(response.headers.get("retry-after"));
