@@ -161,7 +161,7 @@ async function fetchWithRetry(url: string, signal?: AbortSignal): Promise<unknow
     }
     if (response.status === 401 && /live f1 session/i.test(await response.text()))
       throw new OpenF1LiveSessionError(
-        "F1 data is paused while a session is live: OpenF1 opens again after it ends. Try again then.",
+        "OpenF1 is unavailable at the moment",
       );
     if (response.status === 429 || response.status >= 500) {
       if (attempt >= 4) throw new OpenF1Error(`OpenF1 HTTP ${response.status}. Try again shortly.`);
