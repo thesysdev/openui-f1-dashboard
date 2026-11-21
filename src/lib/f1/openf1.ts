@@ -160,9 +160,7 @@ async function fetchWithRetry(url: string, signal?: AbortSignal): Promise<unknow
       continue;
     }
     if (response.status === 401 && /live f1 session/i.test(await response.text()))
-      throw new OpenF1LiveSessionError(
-        "OpenF1 is unavailable at the moment",
-      );
+      throw new OpenF1LiveSessionError("OpenF1 is unavailable at the moment");
     if (response.status === 429 || response.status >= 500) {
       if (attempt >= 4) throw new OpenF1Error(`OpenF1 HTTP ${response.status}. Try again shortly.`);
       const retryAfter = Number(response.headers.get("retry-after"));
