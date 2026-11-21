@@ -6,13 +6,10 @@ import { invalidateOpenf1Token, openf1Token } from "./openf1-auth";
 // OpenF1 client: one throttled request queue per process and a disk cache under data/openf1.
 // Finished sessions never change, so their responses are cached forever; calendar lists get a
 // short TTL. When OpenF1 is unreachable or rate limited, a stale cached copy is served instead,
-// which is what lets `npm run snapshot:f1` make the tools work offline. A committed snapshot of
-// what the dashboards read (src/assets/openf1, `npm run snapshot:dashboards`) backs that cache, so
-// fresh server instances can serve them while OpenF1 is closed during live sessions.
+// which is what lets `npm run snapshot:f1` make the tools work offline.
 
 export const OPENF1_BASE = "https://api.openf1.org/v1";
-const SEED_DIR = resolve(process.cwd(), "src/assets/openf1");
-const CACHE_DIR = process.env.OPENF1_WRITE_SEED ? SEED_DIR : resolve(process.cwd(), "data/openf1");
+const CACHE_DIR = resolve(process.cwd(), "data/openf1");
 
 // The free tier allows 3 requests per second and 30 per minute. A sliding window keeps us under
 // both while still letting a single question's few requests go out in a burst.
@@ -56,10 +53,10 @@ export function openf1Url(endpoint: string, params: Params = {}) {
   return `${OPENF1_BASE}/${endpoint}${query ? `?${query}` : ""}`;
 }
 
-function cachePath(url: string, dir = CACHE_DIR) {
+function cachePath(url: string) {
   const endpoint = new URL(url).pathname.split("/").pop() ?? "misc";
   const hash = createHash("sha1").update(url).digest("hex").slice(0, 16);
-  return resolve(dir, endpoint, `${hash}.json`);
+  return resolve(CACHE_DIR, endpoint, `${hash}.json`);
 }
 
 type CacheEntry = { url: string; fetchedAt: number; final: boolean; data: unknown[] };
@@ -98,7 +95,7 @@ export async function openf1<T = Record<string, unknown>>(
   const url = openf1Url(endpoint, params);
   const path = cachePath(url);
   const ttlMs = (options.ttl ?? 600) * 1000;
-  const cached = memory.get(url) ?? (await readCache(path)) ?? (await readCache(cachePath(url, SEED_DIR)));
+  const cached = memory.get(url) ?? (await readCache(path));
   if (cached) memory.set(url, cached);
   const fresh =
     cached && (cached.final || options.offline || Date.now() - cached.fetchedAt < ttlMs);
