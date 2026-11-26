@@ -57,6 +57,10 @@
   font-style: italic;
   font-display: swap;
 }
+:root {
+  color-scheme: light;
+}
+
 html,
 body {
   margin: 0;
