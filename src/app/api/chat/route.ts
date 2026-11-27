@@ -1,4 +1,3 @@
-import { storeChatCompletionHistory } from "@openuidev/server/openai";
 import OpenAI from "openai";
 import type {
   ChatCompletionChunk,
@@ -7,8 +6,7 @@ import type {
 import { z } from "zod/v4";
 import { f1PromptContext } from "../../../lib/f1/context";
 import { f1Executors, f1FunctionTools } from "../../../lib/f1/tools";
-import { frontendToken } from "../../../lib/frontend-token";
-import { HistoryLoadError, loadChatCompletionHistory } from "../../../lib/gateway-history";
+import { openui, ownsThread } from "../../../lib/openui";
 import { analyticsPrompt } from "../../../lib/prompt";
 import { runChatToolLoop } from "../../../lib/tool-loop";
 import { hasAllowedOrigin } from "../../../lib/same-origin";
@@ -27,13 +25,6 @@ const chatRequestSchema = z.object({
     .transform((messages) => messages.at(-1))
     .pipe(z.object({ role: z.literal("user"), content: z.string().trim().min(1).max(600) })),
 });
-
-// The thread's earlier turns, loaded from its Gateway conversation with their tool calls and
-// results rather than taken from the browser, so every value the model sees came from a query
-// this server ran. To send less of a long thread, compact the messages here.
-function conversation(token: string, threadId: string, signal: AbortSignal) {
-  return loadChatCompletionHistory({ frontendToken: token, conversationId: threadId, signal });
-}
 
 async function parseChatRequest(request: Request) {
   if (request.headers.get("content-type")?.split(";")[0].trim() !== "application/json")
@@ -93,16 +84,17 @@ export async function POST(request: Request) {
   // carries no tool definitions. The loop runs only the names registered here.
   const tools = f1FunctionTools();
   const functionTools = f1Executors();
-  // Read the thread as the visitor, not with the API key: Gateway refuses a thread that isn't
-  // theirs, so knowing a conversation id isn't enough to read or add to someone else's chat.
-  // Once it's confirmed theirs, the turn is stored with the key below.
+  // Knowing a conversation id isn't enough to read or add to someone else's chat: check the thread
+  // is this visitor's first. Its earlier turns then come from the Gateway conversation, with their
+  // tool calls and results, rather than from the browser, so every value the model sees came from
+  // a query this server ran. To send less of a long thread, compact the messages here.
+  const conversations = openui.chat.conversations;
   let history: ChatCompletionMessageParam[];
   try {
-    const { token } = await frontendToken(apiKey, userId, request.signal);
-    history = await conversation(token, threadId, request.signal);
-  } catch (error) {
-    if (error instanceof HistoryLoadError && (error.status === 403 || error.status === 404))
+    if (!(await ownsThread(userId, threadId, request.signal)))
       return Response.json({ error: "This thread isn't available." }, { status: 404 });
+    history = await conversations.items.list(threadId, { signal: request.signal });
+  } catch {
     return Response.json({ error: "Could not load this thread from OpenUI Gateway." }, { status: 502 });
   }
   const context = await f1PromptContext(request.signal);
@@ -168,7 +160,7 @@ export async function POST(request: Request) {
         });
       } finally {
         // The stream ends once the turn is stored, so a follow-up question loads it.
-        await storeChatCompletionHistory({ apiKey, conversationId: threadId, messages: turn }).catch(
+        await conversations.items.create(threadId, turn).catch(
           (error: unknown) => console.error("Could not store the turn in the Gateway conversation.", error),
         );
         if (open) controller.close();
