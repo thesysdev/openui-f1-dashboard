@@ -19,7 +19,7 @@ export async function POST(request: Request) {
   if (!apiKey) throw new Error("Set THESYS_API_KEY in .env.local, then restart.");
 
   try {
-    const { token, expiresAt } = await frontendToken(apiKey, userId, request.signal);
+    const { token, expiresAt } = await frontendToken(userId, request.signal);
     return Response.json(
       { token, expires_at: expiresAt },
       { headers: { "Cache-Control": "private, no-store" } },
